@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unicorn Flappy Game</title>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; }
+        canvas { border: 1px solid #fff; }
+        #score { position: absolute; top: 20px; left: 20px; font-family: Arial, sans-serif; font-size: 24px; color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+
+        // Game variables
+        let unicorn = {
+            x: 100,
+            y: canvas.height / 2,
+            width: 50,
+            height: 50,
+            velocity: 0,
+            gravity: 0.5,
+            jump: -10
+        };
+        let pipes = [];
+        let score = 0;
+        let gameOver = false;
+        let frameCount = 0;
+        const pipeGap = 200;
+        const pipeWidth = 50;
+        const pipeSpeed = 2;
+
+        // Placeholder for images (replace with actual image paths)
+        const backgroundImg = new Image();
+        backgroundImg.src = 'sky_clouds_rainbow.png'; // Blue sky with clouds and rainbows
+        const unicornImg = new Image();
+        unicornImg.src = 'unicorn.png'; // Unicorn sprite
+        const pipeImg = new Image();
+        pipeImg.src = 'pipe.png'; // Pipe sprite
+
+        // Handle input
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !gameOver) {
+                unicorn.velocity = unicorn.jump;
+            }
+            if (e.code === 'Enter' && gameOver) {
+                resetGame();
+            }
+        });
+
+        // Generate pipes
+        function createPipe() {
+            const minHeight = 100;
+            const maxHeight = canvas.height - pipeGap - minHeight;
+            const gapY = Math.random() * (maxHeight - minHeight) + minHeight;
+            pipes.push({
+                x: canvas.width,
+                gapY: gapY,
+                passed: false
+            });
+        }
+
+        // Reset game
+        function resetGame() {
+            unicorn.y = canvas.height / 2;
+            unicorn.velocity = 0;
+            pipes = [];
+            score = 0;
+            gameOver = false;
+            frameCount = 0;
+            scoreDisplay.textContent = `Score: ${score}`;
+        }
+
+        // Collision detection
+        function checkCollision() {
+            for (let pipe of pipes) {
+                if (
+                    unicorn.x + unicorn.width > pipe.x &&
+                    unicorn.x < pipe.x + pipeWidth &&
+                    (unicorn.y < pipe.gapY - pipeGap / 2 || unicorn.y + unicorn.height > pipe.gapY + pipeGap / 2)
+                ) {
+                    return true;
+                }
+            }
+            if (unicorn.y <= 0 || unicorn.y + unicorn.height >= canvas.height) {
+                return true;
+            }
+            return false;
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '40px Arial';
+                ctx.fillText('Game Over!', canvas.width / 2 - 100, canvas.height / 2);
+                ctx.fillText('Press Enter to Restart', canvas.width / 2 - 140, canvas.height / 2 + 50);
+                return;
+            }
+
+            // Update unicorn
+            unicorn.velocity += unicorn.gravity;
+            unicorn.y += unicorn.velocity;
+
+            // Generate pipes every 100 frames
+            if (frameCount % 100 === 0) {
+                createPipe();
+            }
+
+            // Update pipes
+            pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
+            for (let pipe of pipes) {
+                pipe.x -= pipeSpeed;
+                if (!pipe.passed && unicorn.x > pipe.x + pipeWidth) {
+                    score++;
+                    pipe.passed = true;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                }
+            }
+
+            // Check collision
+            if (checkCollision()) {
+                gameOver = true;
+            }
+
+            // Draw background
+            ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+
+            // Draw pipes
+            for (let pipe of pipes) {
+                // Top pipe
+                ctx.drawImage(pipeImg, pipe.x, 0, pipeWidth, pipe.gapY - pipeGap / 2);
+                // Bottom pipe
+                ctx.drawImage(pipeImg, pipe.x, pipe.gapY + pipeGap / 2, pipeWidth, canvas.height - (pipe.gapY + pipeGap / 2));
+            }
+
+            // Draw unicorn
+            ctx.drawImage(unicornImg, unicorn.x, unicorn.y, unicorn.width, unicorn.height);
+
+            frameCount++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game when images are loaded
+        Promise.all([
+            new Promise(resolve => backgroundImg.onload = resolve),
+            new Promise(resolve => unicornImg.onload = resolve),
+            new Promise(resolve => pipeImg.onload = resolve)
+        ]).then(() => {
+            createPipe();
+            gameLoop();
+        }).catch(() => {
+            console.error('Failed to load images. Using placeholders.');
+            // Fallback: Draw placeholders if images fail to load
+            backgroundImg.onload = null;
+            unicornImg.onload = null;
+            pipeImg.onload = null;
+            gameLoop();
+        });
+
+        // Fallback rendering if images are missing
+        ctx.fillStyle = '#87CEEB'; // Blue sky fallback
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'white'; // Clouds
+        ctx.fillRect(100, 50, 100, 50);
+        ctx.fillRect(300, 100, 150, 60);
+        ctx.fillStyle = 'red'; // Rainbow stripes (simplified)
+        ctx.fillRect(200, 200, 100, 10);
+        ctx.fillStyle = 'orange';
+        ctx.fillRect(200, 210, 100, 10);
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(200, 220, 100, 10);
+    </script>
+</body>
+</html>
